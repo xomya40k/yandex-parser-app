@@ -1,0 +1,37 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vp build",
+        "dev": "vp dev",
+        "check": "vp check",
+        "check:fix": "vp check --fix",
+        "types:check": "vue-tsc --noEmit"
+    },
+    "dependencies": {
+        "axios": "^1.11.0",
+        "laravel-vite-plugin": "^3.0.0",
+        "pinia": "^3.0.3",
+        "tailwindcss": "^4.1.1",
+        "vue": "^3.5.13",
+        "vue-router": "^4.5.1"
+    },
+    "devDependencies": {
+        "@tailwindcss/vite": "^4.1.11",
+        "@types/node": "^22.13.5",
+        "@vitejs/plugin-vue": "^6.0.0",
+        "typescript": "^5.2.2",
+        "vite": "^8.0.0",
+        "vite-plus": "0.3.0",
+        "vue-tsc": "^2.2.4"
+    },
+    "optionalDependencies": {
+        "@rollup/rollup-linux-x64-gnu": "4.9.5",
+        "@rollup/rollup-win32-x64-msvc": "4.9.5",
+        "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
+        "@tailwindcss/oxide-win32-x64-msvc": "^4.0.1",
+        "lightningcss-linux-x64-gnu": "^1.29.1",
+        "lightningcss-win32-x64-msvc": "^1.29.1"
+    }
+}
