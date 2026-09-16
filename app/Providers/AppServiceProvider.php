@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Repositories\Interfaces\OrganizationRepositoryInterface;
+use App\Repositories\Interfaces\ReviewRepositoryInterface;
+use App\Repositories\OrganizationRepository;
+use App\Repositories\ReviewRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +19,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(OrganizationRepositoryInterface::class, OrganizationRepository::class);
+        $this->app->singleton(ReviewRepositoryInterface::class, ReviewRepository::class);
     }
 
     /**
