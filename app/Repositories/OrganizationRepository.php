@@ -18,6 +18,13 @@ class OrganizationRepository implements OrganizationRepositoryInterface
         return $this->model->query()->create($data);
     }
 
+    public function update(Organization $organization, array $data): Organization
+    {
+        $organization->update($data);
+
+        return $organization->refresh();
+    }
+
     public function findByYandexUrl(string $url): ?Organization
     {
         return $this->model->query()

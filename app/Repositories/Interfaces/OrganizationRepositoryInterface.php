@@ -13,5 +13,10 @@ interface OrganizationRepositoryInterface
      */
     public function create(array $data): Organization;
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function update(Organization $organization, array $data): Organization;
+
     public function findByYandexUrl(string $url): ?Organization;
 }
