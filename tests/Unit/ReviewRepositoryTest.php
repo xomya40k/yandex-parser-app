@@ -4,64 +4,62 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Models\Organization;
 use App\Models\Review;
 use App\Repositories\ReviewRepository;
-use Database\Factories\OrganizationFactory;
-use Database\Factories\ReviewFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
 class ReviewRepositoryTest extends TestCase
 {
-    use RefreshDatabase, WithFaker;
+    use RefreshDatabase;
 
-    private ReviewRepository $ReviewRepository;
+    private ReviewRepository $reviewRepository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->ReviewRepository = app(ReviewRepository::class);
+        $this->reviewRepository = app(ReviewRepository::class);
     }
 
-    public function test_update_or_create_review()
+    public function test_update_or_create_review(): void
     {
-        $reviewData = ReviewFactory::new()->make();
+        $reviewData = Review::factory()->make();
 
-        $review = $this->ReviewRepository->updateOrCreate($reviewData->toArray());
+        $review = $this->reviewRepository->updateOrCreate($reviewData->toArray());
 
         $this->assertInstanceOf(Review::class, $review);
         $this->assertEquals($reviewData->author_name, $review->author_name);
         $this->assertEquals($reviewData->text, $review->text);
 
-        $text = $this->faker->text;
+        $text = fake()->paragraph();
 
-        $review = $this->ReviewRepository->updateOrCreate(array_merge($reviewData->toArray(), ['text' => $text]));
+        $review = $this->reviewRepository->updateOrCreate(array_merge($reviewData->toArray(), ['text' => $text]));
 
         $this->assertInstanceOf(Review::class, $review);
         $this->assertEquals($reviewData->author_name, $review->author_name);
         $this->assertEquals($text, $review->text);
     }
 
-    public function test_paginate_by_organization()
+    public function test_paginate_by_organization(): void
     {
-        $organizationId = OrganizationFactory::new()->create()->id;
-        ReviewFactory::new()->count(10)->create(['organization_id' => $organizationId]);
+        $organization = Organization::factory()->create();
+        Review::factory()->count(10)->create(['organization_id' => $organization->id]);
 
-        $reviewsPaginator = $this->ReviewRepository->paginateByOrganization($organizationId, 10, 1);
+        $reviewsPaginator = $this->reviewRepository->paginateByOrganization($organization->id, 10, 1);
 
         $this->assertTrue($reviewsPaginator->isNotEmpty());
         $this->assertEquals(10, $reviewsPaginator->total());
         $this->assertEquals(1, $reviewsPaginator->currentPage());
     }
 
-    public function test_get_сount_by_organization()
+    public function test_get_count_by_organization(): void
     {
-        $organizationId = OrganizationFactory::new()->create()->id;
-        ReviewFactory::new()->count(10)->create(['organization_id' => $organizationId]);
+        $organization = Organization::factory()->create();
+        Review::factory()->count(10)->create(['organization_id' => $organization->id]);
 
-        $count = $this->ReviewRepository->getCountByOrganization($organizationId);
+        $count = $this->reviewRepository->getCountByOrganization($organization->id);
 
         $this->assertEquals(10, $count);
     }

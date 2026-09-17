@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.17",
+        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0"
     },
     "require-dev": {
@@ -62,7 +63,7 @@
             "@test"
         ],
         "types:check": [
-            "@php -d memory_limit=512M vendor/bin/phpstan analyse"
+            "@php vendor/bin/phpstan analyse"
         ],
         "test": [
             "@php artisan config:clear --ansi",

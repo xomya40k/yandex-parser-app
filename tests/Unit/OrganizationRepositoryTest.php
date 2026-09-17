@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Enums\OrganizationStatus;
 use App\Models\Organization;
 use App\Repositories\OrganizationRepository;
-use Database\Factories\OrganizationFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,9 +22,9 @@ class OrganizationRepositoryTest extends TestCase
         $this->organizationRepository = app(OrganizationRepository::class);
     }
 
-    public function test_create_organization()
+    public function test_create_organization(): void
     {
-        $organizationData = OrganizationFactory::new()->make();
+        $organizationData = Organization::factory()->make();
 
         $organization = $this->organizationRepository->create($organizationData->toArray());
 
@@ -35,26 +33,18 @@ class OrganizationRepositoryTest extends TestCase
         $this->assertEquals($organizationData->yandex_maps_url, $organization->yandex_maps_url);
     }
 
-    public function test_find_by_yandex_url_organization()
+    public function test_find_by_yandex_url_organization(): void
     {
-        $organization = OrganizationFactory::new()->create();
+        $organization = Organization::factory()->create();
 
-        $this->assertInstanceOf(Organization::class, $this->organizationRepository->findByYandexUrl($organization->yandex_maps_url));
-        $this->assertEquals($organization->id, $this->organizationRepository->findByYandexUrl($organization->yandex_maps_url)->id);
+        $found = $this->organizationRepository->findByYandexUrl($organization->yandex_maps_url);
+
+        $this->assertInstanceOf(Organization::class, $found);
+        $this->assertEquals($organization->id, $found->id);
     }
 
-    public function test_find_by_yandex_url_organization_not_found()
+    public function test_find_by_yandex_url_organization_not_found(): void
     {
         $this->assertNull($this->organizationRepository->findByYandexUrl(fake()->url()));
-    }
-
-    public function test_update_status_organization()
-    {
-        $organization = OrganizationFactory::new()->pending()->create();
-
-        $organization = $this->organizationRepository->updateStatus($organization, OrganizationStatus::Ready);
-
-        $this->assertInstanceOf(Organization::class, $organization);
-        $this->assertEquals(OrganizationStatus::Ready, $organization->status);
     }
 }

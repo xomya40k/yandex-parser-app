@@ -18,8 +18,12 @@ class OrganizationFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->company,
-            'yandex_maps_url' => $this->faker->url,
+            'name' => $this->faker->company(),
+            'yandex_maps_url' => sprintf(
+                'https://yandex.ru/maps/org/%s/%s/',
+                $this->faker->unique()->slug(2),
+                $this->faker->unique()->numerify('##########'),
+            ),
             'status' => $this->faker->randomElement(OrganizationStatus::cases()),
         ];
     }
