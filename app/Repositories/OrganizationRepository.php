@@ -25,6 +25,11 @@ class OrganizationRepository implements OrganizationRepositoryInterface
         return $organization->refresh();
     }
 
+    public function findById(int $id): ?Organization
+    {
+        return $this->model->query()->find($id);
+    }
+
     public function findByYandexUrl(string $url): ?Organization
     {
         return $this->model->query()

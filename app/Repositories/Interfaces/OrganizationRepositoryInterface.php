@@ -18,5 +18,7 @@ interface OrganizationRepositoryInterface
      */
     public function update(Organization $organization, array $data): Organization;
 
+    public function findById(int $id): ?Organization;
+
     public function findByYandexUrl(string $url): ?Organization;
 }
