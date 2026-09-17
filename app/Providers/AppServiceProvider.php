@@ -8,6 +8,8 @@ use App\Repositories\Interfaces\UserRepositoryInterface;
 use App\Repositories\OrganizationRepository;
 use App\Repositories\ReviewRepository;
 use App\Repositories\UserRepository;
+use App\Services\Parsers\Contracts\YandexParserInterface;
+use App\Services\Parsers\YandexMapParserService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(OrganizationRepositoryInterface::class, OrganizationRepository::class);
         $this->app->singleton(ReviewRepositoryInterface::class, ReviewRepository::class);
         $this->app->singleton(UserRepositoryInterface::class, UserRepository::class);
+        $this->app->singleton(YandexParserInterface::class, YandexMapParserService::class);
     }
 
     /**
