@@ -36,4 +36,16 @@ return [
 
     'proxy' => env('YANDEX_HTTP_PROXY'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Reparse cadence (SyncYandexOrganizationsCommand)
+    |--------------------------------------------------------------------------
+    |
+    | Ready organizations are re-parsed when last_parsed_at is older than this
+    | many hours. Failed ones retry when updated_at is older than the same window.
+    |
+    */
+
+    'reparse_interval_hours' => (int) env('YANDEX_REPARSE_INTERVAL_HOURS', 24),
+
 ];
