@@ -38,6 +38,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Reviews listing cache (ReviewService)
+    |--------------------------------------------------------------------------
+    |
+    | TTL in seconds for the version-keyed page cache
+    | (reviews:org:{id}:v{version}:page:{page}:per:{perPage}).
+    | Cache is also invalidated immediately after a successful sync.
+    |
+    */
+
+    'reviews_cache_ttl' => (int) env('YANDEX_REVIEWS_CACHE_TTL', 3600),
+
+    /*
+    |--------------------------------------------------------------------------
     | Reparse cadence (SyncYandexOrganizationsCommand)
     |--------------------------------------------------------------------------
     |
