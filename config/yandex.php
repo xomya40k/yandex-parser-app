@@ -61,4 +61,29 @@ return [
 
     'reparse_interval_hours' => (int) env('YANDEX_REPARSE_INTERVAL_HOURS', 24),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Queue / ParseOrganizationJob
+    |--------------------------------------------------------------------------
+    |
+    | name — dedicated queue for parsing workers (`queue:work --queue=parsing`).
+    | tries / backoff — Laravel job retry matrix (seconds between attempts).
+    | timeout — max seconds per attempt (also WithoutOverlapping expiry).
+    | dispatch_spacing_seconds — delay between cron-dispatched jobs (anti-ban).
+    | stale_run_minutes — processing runs older than this are reaped as failed.
+    |
+    */
+
+    'queue' => [
+        'name' => env('YANDEX_QUEUE_NAME', 'parsing'),
+        'tries' => (int) env('YANDEX_PARSER_TRIES', 3),
+        'timeout' => (int) env('YANDEX_PARSER_JOB_TIMEOUT', 900),
+        'backoff' => array_map(
+            static fn (string $seconds): int => (int) $seconds,
+            explode(',', (string) env('YANDEX_PARSER_BACKOFF', '60,300,900')),
+        ),
+        'dispatch_spacing_seconds' => (int) env('YANDEX_QUEUE_DISPATCH_SPACING', 10),
+        'stale_run_minutes' => (int) env('YANDEX_STALE_RUN_MINUTES', 30),
+    ],
+
 ];
