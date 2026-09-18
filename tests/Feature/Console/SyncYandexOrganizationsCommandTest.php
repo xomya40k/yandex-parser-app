@@ -170,8 +170,10 @@ class SyncYandexOrganizationsCommandTest extends TestCase
             ->assertSuccessful();
 
         $this->assertSame(OrganizationStatus::Ready, $ok->fresh()->status);
-        $this->assertSame(OrganizationStatus::Failed, $captcha->fresh()->status);
-        $this->assertSame(OrganizationStatus::Failed, $layout->fresh()->status);
+        // Non-terminal failures leave the card in Parsing; Failed is applied only on
+        // terminal handling (ParseOrganizationJob::failed → ParseRunService).
+        $this->assertSame(OrganizationStatus::Parsing, $captcha->fresh()->status);
+        $this->assertSame(OrganizationStatus::Parsing, $layout->fresh()->status);
 
         Log::shouldHaveReceived('error')->atLeast()->twice();
     }

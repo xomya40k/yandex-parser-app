@@ -6,6 +6,10 @@ namespace App\Services\Organization;
 
 use App\DTOs\Organization\OrganizationDTO;
 use App\DTOs\Organization\SyncOrganizationDTO;
+use App\DTOs\Parsing\FailParseRunDTO;
+use App\DTOs\Parsing\ParseRunAttemptDTO;
+use App\DTOs\Parsing\ParseRunProgressDTO;
+use App\DTOs\Parsing\ParseRunTargetDTO;
 use App\DTOs\Parsing\ParseYandexOrganizationDTO;
 use App\DTOs\Parsing\ParsedReviewDTO;
 use App\DTOs\Parsing\YandexParseResultDTO;
@@ -18,6 +22,7 @@ use App\Repositories\Interfaces\OrganizationRepositoryInterface;
 use App\Repositories\Interfaces\OrganizationSnapshotRepositoryInterface;
 use App\Repositories\Interfaces\ReviewRepositoryInterface;
 use App\Services\Parsers\Contracts\YandexParserInterface;
+use App\Services\Parsing\ParseRunService;
 use App\Services\Review\ReviewService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +36,7 @@ class OrganizationSyncService
         private readonly ReviewRepositoryInterface $reviewRepository,
         private readonly YandexParserInterface $parser,
         private readonly ReviewService $reviewService,
+        private readonly ParseRunService $parseRunService,
     ) {}
 
     public function sync(SyncOrganizationDTO $dto): OrganizationDTO
@@ -41,13 +47,21 @@ class OrganizationSyncService
             throw (new ModelNotFoundException)->setModel(Organization::class, [$dto->organizationId]);
         }
 
+        $parseRunId = $dto->parseRunId
+            ?? $this->parseRunService->ensure(new ParseRunTargetDTO($organization->id))->parseRun->id;
+
+        $this->parseRunService->markProcessing(new ParseRunAttemptDTO(
+            parseRunId: $parseRunId,
+            attempt: $dto->attempt,
+        ));
+
         $organization = $this->organizationRepository->update($organization, [
             'status' => OrganizationStatus::Parsing,
         ]);
 
         try {
             $result = $this->parser->parse(
-                new ParseYandexOrganizationDTO($organization->yandex_maps_url),
+                new ParseYandexOrganizationDTO($organization->yandex_maps_url, $parseRunId),
             );
 
             $organization = DB::transaction(function () use ($organization, $result): Organization {
@@ -81,14 +95,28 @@ class OrganizationSyncService
                 new InvalidateReviewsCacheDTO($organization->id),
             );
 
+            $progress = $this->parseRunService->latest(new ParseRunTargetDTO($organization->id));
+
+            $this->parseRunService->markCompleted(new ParseRunProgressDTO(
+                parseRunId: $parseRunId,
+                processedReviews: count($result->reviews),
+                processedPages: $progress?->parseRun->processed_pages ?? 0,
+                totalReviews: $result->totalReviews,
+            ));
+
             return new OrganizationDTO($organization);
         } catch (YandexParsingException $exception) {
-            $this->organizationRepository->update($organization, [
-                'status' => OrganizationStatus::Failed,
-            ]);
+            $this->parseRunService->recordFailure(new FailParseRunDTO(
+                parseRunId: $parseRunId,
+                errorCode: $exception->errorCode(),
+                errorMessage: $exception->getMessage(),
+                terminal: false,
+            ));
 
             Log::error('Yandex organization sync failed', [
                 'organization_id' => $organization->id,
+                'parse_run_id' => $parseRunId,
+                'attempt' => $dto->attempt,
                 'yandex_maps_url' => $organization->yandex_maps_url,
                 'error_code' => $exception->errorCode(),
                 'exception' => $exception::class,

@@ -55,6 +55,28 @@ class ParseRunService
         return $parseRun === null ? null : new ParseRunDTO($parseRun);
     }
 
+    /**
+     * Ensure an active parse run exists without dispatching a job.
+     * Used when sync() is invoked outside the queue (legacy / direct calls).
+     */
+    public function ensure(ParseRunTargetDTO $dto): ParseRunDTO
+    {
+        $active = $this->parseRunRepository->findActiveForOrganization($dto->organizationId);
+
+        if (!is_null($active)) {
+            return new ParseRunDTO($active);
+        }
+
+        $run = $this->parseRunRepository->create([
+            'organization_id' => $dto->organizationId,
+            'status' => ParseRunStatus::Pending,
+            'queued_at' => now(),
+            'max_attempts' => (int) config('yandex.queue.tries', 3),
+        ]);
+
+        return new ParseRunDTO($run);
+    }
+
     public function markProcessing(ParseRunAttemptDTO $dto): void
     {
         $data = [
