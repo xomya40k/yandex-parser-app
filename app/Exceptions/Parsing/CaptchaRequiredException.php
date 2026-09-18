@@ -15,4 +15,9 @@ final class CaptchaRequiredException extends YandexParsingException
     {
         return 'captcha_required';
     }
+
+    public function isRetryable(): bool
+    {
+        return true;
+    }
 }

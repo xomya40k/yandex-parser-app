@@ -15,4 +15,9 @@ final class OrganizationUnavailableException extends YandexParsingException
     {
         return 'organization_unavailable';
     }
+
+    public function isRetryable(): bool
+    {
+        return true;
+    }
 }

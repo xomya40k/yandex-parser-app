@@ -15,4 +15,9 @@ final class EmptyYandexResponseException extends YandexParsingException
     {
         return 'empty_yandex_response';
     }
+
+    public function isRetryable(): bool
+    {
+        return true;
+    }
 }

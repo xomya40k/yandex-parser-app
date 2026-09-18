@@ -11,4 +11,6 @@ abstract class YandexParsingException extends RuntimeException
     abstract public function httpStatus(): int;
 
     abstract public function errorCode(): string;
+
+    abstract public function isRetryable(): bool;
 }

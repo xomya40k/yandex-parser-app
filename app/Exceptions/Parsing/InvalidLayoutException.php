@@ -15,4 +15,9 @@ final class InvalidLayoutException extends YandexParsingException
     {
         return 'invalid_layout';
     }
+
+    public function isRetryable(): bool
+    {
+        return false;
+    }
 }
