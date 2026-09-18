@@ -7,6 +7,7 @@ namespace App\Services\Parsers;
 use App\DTOs\Parsing\ParsedReviewDTO;
 use App\DTOs\Parsing\ParseYandexOrganizationDTO;
 use App\DTOs\Parsing\YandexParseResultDTO;
+use App\Events\Parsing\YandexReviewsPageParsed;
 use App\Exceptions\Parsing\CaptchaRequiredException;
 use App\Exceptions\Parsing\EmptyYandexResponseException;
 use App\Exceptions\Parsing\InvalidLayoutException;
@@ -76,6 +77,14 @@ final class YandexMapParserService implements YandexParserInterface
             foreach ($pageReviews as $review) {
                 $reviews[] = $review;
             }
+
+            event(new YandexReviewsPageParsed(
+                parseRunId: $dto->parseRunId,
+                page: $page,
+                reviewsOnPage: count($pageReviews),
+                totalCollected: count($reviews),
+                totalReviews: $totalReviews,
+            ));
 
             if ($totalReviews > 0 && count($reviews) >= $totalReviews) {
                 break;
