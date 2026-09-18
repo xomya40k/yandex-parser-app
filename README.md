@@ -94,10 +94,10 @@ php artisan schedule:work
 
 SPA (Vue 3 + Pinia + Vue Router) обслуживается одним Blade-entrypoint `resources/views/app.blade.php`. Cookie-based Sanctum:
 
-| Маршрут SPA | Доступ                                      | Назначение                   |
-| ----------- | ------------------------------------------- | ---------------------------- |
-| `/login`    | только гость (`meta.guestOnly`)             | форма входа                  |
-| `/`         | только авторизованный (`meta.requiresAuth`) | настройки (пока плейсхолдер) |
+| Маршрут SPA | Доступ                                      | Назначение                  |
+| ----------- | ------------------------------------------- | --------------------------- |
+| `/login`    | только гость (`meta.guestOnly`)             | форма входа                 |
+| `/`         | только авторизованный (`meta.requiresAuth`) | настройки + дашборд отзывов |
 
 Поток:
 
@@ -108,6 +108,24 @@ SPA (Vue 3 + Pinia + Vue Router) обслуживается одним Blade-ent
 5. При любом `401` Axios-интерцептор вызывает `setUnauthorizedHandler` из composition root (`app.ts`): чистит сессию и, если текущий route защищён, уводит на login.
 
 Сидовые креды — в таблице выше (`test@example.com` / `password`).
+
+---
+
+## Фронтенд: дашборд организации
+
+Экран `/` (`SettingsView.vue`) — единая страница настроек и данных. Три Pinia-стора соответствуют трём бэкенд-агрегатам; оркестрация переходов живёт во view.
+
+| Слой   | Файлы                                                               | Роль                                                                             |
+| ------ | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| API    | `api/organization.ts`, `api/parse-run.ts`, `api/reviews.ts`         | Обёртки над `/api/organization*`; пустой parse-run (`data: []`) мапится в `null` |
+| Stores | `stores/organization.ts`, `stores/parseRun.ts`, `stores/reviews.ts` | Состояние формы, polling прогресса, постраничные отзывы                          |
+| UI     | `components/organization/*`, `components/reviews/*`                 | Форма URL, баннер прогресса/ошибок, сводка, таблица, пагинация                   |
+
+**Polling прогресса.** `useParseRunStore.refresh()` / `trigger()` дергают `GET`/`POST /api/organization/parse-run`, затем планируют следующий опрос через рекурсивный `setTimeout` (~2.5 с), пока статус `pending`/`processing`. На `completed`/`failed` поллинг останавливается; `onUnmounted` вызывает `stopPolling()`. После перехода из активного статуса во view перезагружаются организация и (при `completed`) первая страница отзывов.
+
+**Ошибки парсинга.** `ParseProgressBanner` показывает `describeParseRunError(error_code)`: для `invalid_layout` — явный текст про смену разметки Яндекса; кнопка «Повторить» вызывает `POST /api/organization/parse-run`.
+
+**Пагинация.** `GET /api/organization/reviews?page=N&per_page=50` без перезагрузки страницы; переключение через `PaginationControls` → `reviewsStore.fetchPage(page)`.
 
 ---
 
@@ -283,8 +301,8 @@ php artisan queue:work --queue=parsing
 - Job batching / агрегированный прогресс по всей сети филиалов + Laravel Horizon для мониторинга очереди.
 - WebSocket / SSE push прогресса вместо polling `GET /api/organization/parse-run`.
 - Ротация прокси/UA и circuit-breaker при серии captcha.
-- UI: индикатор статуса `parsing` / `failed`, прогресс-бар по `progress_percent`, кнопка «обновить сейчас».
 - API истории снимков (`organization_snapshots`) для сравнения «было → стало» в интерфейсе.
+- Синхронизация номера страницы отзывов с query-параметром URL.
 - Docker Compose «из коробки» для сдачи одной командой.
 - E2E против живой карточки Яндекса в CI (сейчас — HTML-фикстуры, без сети).
 
