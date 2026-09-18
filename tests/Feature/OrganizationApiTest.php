@@ -5,15 +5,24 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\OrganizationStatus;
+use App\Jobs\ParseOrganizationJob;
 use App\Models\Organization;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class OrganizationApiTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Queue::fake();
+    }
 
     public function test_show_returns_404_when_no_current_organization(): void
     {
@@ -62,6 +71,10 @@ class OrganizationApiTest extends TestCase
             'id' => $user->id,
             'current_organization_id' => $organizationId,
         ]);
+
+        Queue::assertPushed(ParseOrganizationJob::class, function (ParseOrganizationJob $job) use ($organizationId): bool {
+            return $job->organizationId === $organizationId;
+        });
     }
 
     public function test_storing_same_url_reuses_existing_organization(): void
@@ -89,6 +102,10 @@ class OrganizationApiTest extends TestCase
 
         $this->assertSame(1, Organization::query()->count());
         $this->assertSame($existing->id, $user->fresh()->current_organization_id);
+
+        Queue::assertPushed(ParseOrganizationJob::class, function (ParseOrganizationJob $job) use ($existing): bool {
+            return $job->organizationId === $existing->id;
+        });
     }
 
     public function test_storing_new_url_creates_another_organization_without_touching_old(): void

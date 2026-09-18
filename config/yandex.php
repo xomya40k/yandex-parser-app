@@ -51,10 +51,10 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Reparse cadence (SyncYandexOrganizationsCommand)
+    | Reparse cadence (QueueOrganizationParsingCommand)
     |--------------------------------------------------------------------------
     |
-    | Ready organizations are re-parsed when last_parsed_at is older than this
+    | Ready organizations are re-queued when last_parsed_at is older than this
     | many hours. Failed ones retry when updated_at is older than the same window.
     |
     */

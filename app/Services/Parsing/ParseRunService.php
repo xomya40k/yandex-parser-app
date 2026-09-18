@@ -42,7 +42,11 @@ class ParseRunService
                 'max_attempts' => (int) config('yandex.queue.tries', 3),
             ]);
 
-            ParseOrganizationJob::dispatch($dto->organizationId, $run->id);
+            $pending = ParseOrganizationJob::dispatch($dto->organizationId, $run->id);
+
+            if ($dto->delaySeconds > 0) {
+                $pending->delay(now()->addSeconds($dto->delaySeconds));
+            }
 
             return new ParseRunDTO($run);
         });

@@ -8,6 +8,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('yandex:sync-organizations')
+Schedule::command('yandex:queue-parsing')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+Schedule::command('queue:prune-failed --hours=168')->weekly();
