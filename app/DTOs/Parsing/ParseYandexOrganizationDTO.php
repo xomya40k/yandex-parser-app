@@ -8,5 +8,6 @@ final readonly class ParseYandexOrganizationDTO
 {
     public function __construct(
         public string $yandexMapsUrl,
+        public ?int $parseRunId = null,
     ) {}
 }

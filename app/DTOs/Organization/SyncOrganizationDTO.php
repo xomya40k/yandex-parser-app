@@ -8,5 +8,7 @@ final readonly class SyncOrganizationDTO
 {
     public function __construct(
         public int $organizationId,
+        public ?int $parseRunId = null,
+        public int $attempt = 1,
     ) {}
 }
