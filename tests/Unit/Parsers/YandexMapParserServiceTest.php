@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit\Parsers;
 
 use App\DTOs\Parsing\ParseYandexOrganizationDTO;
+use App\Events\Parsing\YandexReviewsPageParsed;
 use App\Exceptions\Parsing\CaptchaRequiredException;
 use App\Exceptions\Parsing\EmptyYandexResponseException;
 use App\Exceptions\Parsing\InvalidLayoutException;
 use App\Integrations\Yandex\YandexMapsIntegrationClient;
 use App\Services\Parsers\YandexMapParserService;
 use App\Support\Yandex\YandexOrganizationUrlResolver;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Tests\Fixtures\YandexFixture;
 use Tests\TestCase;
@@ -177,5 +179,48 @@ class YandexMapParserServiceTest extends TestCase
         $this->parser->parse(new ParseYandexOrganizationDTO(
             'https://yandex.ru/maps/org/test-cafe/1234567890/',
         ));
+    }
+
+    public function test_parse_dispatches_page_parsed_event_per_page_with_cumulative_totals(): void
+    {
+        Event::fake([YandexReviewsPageParsed::class]);
+
+        Http::fake([
+            'https://yandex.ru/maps/org/1234567890/reviews/?page=1' => Http::response(
+                YandexFixture::load('reviews-page-normal.html'),
+                200,
+            ),
+            'https://yandex.ru/maps/org/1234567890/reviews/?page=2' => Http::response(
+                YandexFixture::load('reviews-page-2.html'),
+                200,
+            ),
+            'https://yandex.ru/maps/org/1234567890/reviews/?page=3' => Http::response(
+                YandexFixture::load('reviews-page-empty.html'),
+                200,
+            ),
+        ]);
+
+        $this->parser->parse(new ParseYandexOrganizationDTO(
+            yandexMapsUrl: 'https://yandex.ru/maps/org/test-cafe/1234567890/',
+            parseRunId: 42,
+        ));
+
+        Event::assertDispatchedTimes(YandexReviewsPageParsed::class, 2);
+
+        Event::assertDispatched(YandexReviewsPageParsed::class, function (YandexReviewsPageParsed $event): bool {
+            return $event->parseRunId === 42
+                && $event->page === 1
+                && $event->reviewsOnPage === 2
+                && $event->totalCollected === 2
+                && $event->totalReviews === 3;
+        });
+
+        Event::assertDispatched(YandexReviewsPageParsed::class, function (YandexReviewsPageParsed $event): bool {
+            return $event->parseRunId === 42
+                && $event->page === 2
+                && $event->reviewsOnPage === 1
+                && $event->totalCollected === 3
+                && $event->totalReviews === 3;
+        });
     }
 }

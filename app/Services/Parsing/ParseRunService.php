@@ -38,6 +38,9 @@ class ParseRunService
             $run = $this->parseRunRepository->create([
                 'organization_id' => $dto->organizationId,
                 'status' => ParseRunStatus::Pending,
+                'processed_reviews' => 0,
+                'processed_pages' => 0,
+                'attempt' => 0,
                 'queued_at' => now(),
                 'max_attempts' => (int) config('yandex.queue.tries', 3),
             ]);
@@ -74,6 +77,9 @@ class ParseRunService
         $run = $this->parseRunRepository->create([
             'organization_id' => $dto->organizationId,
             'status' => ParseRunStatus::Pending,
+            'processed_reviews' => 0,
+            'processed_pages' => 0,
+            'attempt' => 0,
             'queued_at' => now(),
             'max_attempts' => (int) config('yandex.queue.tries', 3),
         ]);
