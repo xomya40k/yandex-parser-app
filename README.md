@@ -90,6 +90,27 @@ php artisan schedule:work
 
 ---
 
+## Фронтенд: авторизация
+
+SPA (Vue 3 + Pinia + Vue Router) обслуживается одним Blade-entrypoint `resources/views/app.blade.php`. Cookie-based Sanctum:
+
+| Маршрут SPA | Доступ                                      | Назначение                   |
+| ----------- | ------------------------------------------- | ---------------------------- |
+| `/login`    | только гость (`meta.guestOnly`)             | форма входа                  |
+| `/`         | только авторизованный (`meta.requiresAuth`) | настройки (пока плейсхолдер) |
+
+Поток:
+
+1. `GET /sanctum/csrf-cookie` — `resources/js/api/csrf.ts` (сырой axios, не `/api`-клиент).
+2. `POST /api/login` / `POST /api/logout` / `GET /api/me` — обёртки в `resources/js/api/auth.ts` через Axios-инстанс с `withCredentials` + `withXSRFToken`.
+3. Pinia-стор `useAuthStore` (`resources/js/stores/auth.ts`) держит пользователя; `ensureInitialized()` один раз за сессию дергает `/api/me`.
+4. `router.beforeEach` ждёт инициализацию и редиректит гостя с защищённых страниц на `/login?redirect=…`, а авторизованного с `/login` — на `/`.
+5. При любом `401` Axios-интерцептор вызывает `setUnauthorizedHandler` из composition root (`app.ts`): чистит сессию и, если текущий route защищён, уводит на login.
+
+Сидовые креды — в таблице выше (`test@example.com` / `password`).
+
+---
+
 ## API (кратко)
 
 | Метод | Путь | Описание |
