@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -52,6 +53,22 @@ class Organization extends Model
     public function snapshots(): HasMany
     {
         return $this->hasMany(OrganizationSnapshot::class);
+    }
+
+    /**
+     * @return HasMany<ParseRun, $this>
+     */
+    public function parseRuns(): HasMany
+    {
+        return $this->hasMany(ParseRun::class);
+    }
+
+    /**
+     * @return HasOne<ParseRun, $this>
+     */
+    public function latestParseRun(): HasOne
+    {
+        return $this->hasOne(ParseRun::class)->latestOfMany();
     }
 
     /**
