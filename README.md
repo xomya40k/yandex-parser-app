@@ -20,10 +20,11 @@ Laravel API + Vue 3 SPA: подключение карточки организ�
 
 ```bash
 cp .env.docker.example .env
-# 1) Сгенерируйте ключ (локально, если есть PHP): php artisan key:generate --show
-#    либо: docker run --rm php:8.3-cli php -r "echo 'base64:'.base64_encode(random_bytes(32)), PHP_EOL;"
-# 2) Вставьте APP_KEY=base64:... в .env
-# 3) Задайте DB_PASSWORD / DB_ROOT_PASSWORD и при необходимости APP_URL / SANCTUM_STATEFUL_DOMAINS
+# 1) Задайте DB_PASSWORD / DB_ROOT_PASSWORD
+# 2) При необходимости APP_URL / SANCTUM_STATEFUL_DOMAINS
+# APP_KEY можно оставить пустым — entrypoint сгенерирует его при первом старте
+#    и сохранит в storage volume (общий для app/queue/scheduler).
+#    Либо задайте явно: php artisan key:generate --show
 
 docker compose build
 docker compose up -d
@@ -125,9 +126,10 @@ php artisan schedule:work
 git clone <REPO_URL> yandex-parser-app
 cd yandex-parser-app
 cp .env.docker.example .env
-# Заполните: APP_KEY, APP_URL=https://YOUR_DOMAIN,
+# Заполните: APP_URL=https://YOUR_DOMAIN,
 # SANCTUM_STATEFUL_DOMAINS=YOUR_DOMAIN,
 # DB_PASSWORD, DB_ROOT_PASSWORD, SEED_USER_* при желании
+# APP_KEY можно оставить пустым (entrypoint сгенерирует) или задать явно
 # SESSION_SECURE_COOKIE=true  (рекомендуется после включения HTTPS)
 ```
 

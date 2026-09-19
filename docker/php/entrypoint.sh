@@ -30,8 +30,30 @@ wait_for_tcp() {
     done
 }
 
+ensure_app_key() {
+    key_file="storage/app/.app_key"
+
+    if [ -n "${APP_KEY:-}" ]; then
+        return
+    fi
+
+    mkdir -p storage/app
+
+    if [ ! -f "$key_file" ] || [ ! -s "$key_file" ]; then
+        php -r 'echo "base64:".base64_encode(random_bytes(32));' > "$key_file"
+        chmod 640 "$key_file"
+        echo "Generated APP_KEY and saved to ${key_file}"
+    else
+        echo "Loaded APP_KEY from ${key_file}"
+    fi
+
+    APP_KEY="$(cat "$key_file")"
+    export APP_KEY
+}
+
 # Named volumes start empty and would hide image contents — restore structure.
 mkdir -p \
+    storage/app \
     storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/testing \
@@ -47,6 +69,8 @@ fi
 
 chown -R www-data:www-data storage bootstrap/cache public 2>/dev/null || true
 chmod -R ug+rwx storage bootstrap/cache
+
+ensure_app_key
 
 if [ -n "${DB_HOST:-}" ] && [ "${DB_CONNECTION:-}" = "mysql" ]; then
     wait_for_tcp "${DB_HOST}" "${DB_PORT:-3306}" "MySQL"

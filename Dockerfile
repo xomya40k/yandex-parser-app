@@ -40,7 +40,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-app.ini
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint
-RUN chmod +x /usr/local/bin/entrypoint
+
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint \
+    && chmod +x /usr/local/bin/entrypoint
 
 COPY composer.json composer.lock ./
 RUN composer install \
@@ -62,5 +64,5 @@ RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R ug+rwx storage bootstrap/cache
 
-ENTRYPOINT ["entrypoint"]
+ENTRYPOINT ["/usr/local/bin/entrypoint"]
 CMD ["php-fpm"]
