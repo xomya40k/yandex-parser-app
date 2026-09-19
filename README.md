@@ -4,9 +4,59 @@ Laravel API + Vue 3 SPA: подключение карточки организ�
 
 Ниже: как поднять проект, как устроен парсер и ответы на «Дополнительные требования» из ТЗ.
 
+### Сдача
+
+|                 |                                                 |
+| --------------- | ----------------------------------------------- |
+| Живой прототип  | `_заполнить: https://YOUR_DOMAIN_` |
+| Git-репозиторий | `_заполнить: https://github.com/..._`           |
+| Логин (сид)     | `test@example.com` / `password`                 |
+
 ---
 
-## Быстрый старт (локально)
+## Быстрый старт (Docker — рекомендуется)
+
+Требования: Docker Engine + Docker Compose plugin.
+
+```bash
+cp .env.docker.example .env
+# 1) Сгенерируйте ключ (локально, если есть PHP): php artisan key:generate --show
+#    либо: docker run --rm php:8.3-cli php -r "echo 'base64:'.base64_encode(random_bytes(32)), PHP_EOL;"
+# 2) Вставьте APP_KEY=base64:... в .env
+# 3) Задайте DB_PASSWORD / DB_ROOT_PASSWORD и при необходимости APP_URL / SANCTUM_STATEFUL_DOMAINS
+
+docker compose build
+docker compose up -d
+
+# Health-check:
+curl -fsS http://localhost/up
+```
+
+Приложение: `http://localhost:8080` при `HTTP_PORT=8080` (по умолчанию в `.env.docker.example` — порт 8080, чтобы не конфликтовать с Laravel Herd на `:80`; для чистого VPS можно поставить `HTTP_PORT=80`).
+
+| Сервис      | Роль                                                          |
+| ----------- | ------------------------------------------------------------- |
+| `nginx`     | HTTP(S), статика `public/build`, FastCGI → php-fpm            |
+| `app`       | php-fpm; при старте: migrate + seed + config/route/view cache |
+| `queue`     | `queue:work --queue=parsing` (Redis)                          |
+| `scheduler` | `schedule:work` (`yandex:queue-parsing` каждые 5 мин)         |
+| `mysql`     | MySQL 8.4 (порт наружу не публикуется)                        |
+| `redis`     | очередь + кэш (`QUEUE_CONNECTION=redis`, `CACHE_STORE=redis`) |
+| `certbot`   | профиль `certbot`; запуск вручную для TLS (см. ниже)          |
+
+Полезные команды:
+
+```bash
+docker compose logs -f app queue scheduler nginx
+docker compose exec app php artisan about
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan db:seed --force
+docker compose down
+```
+
+---
+
+## Быстрый старт (локально без Docker)
 
 Требования: PHP 8.3+, Composer, Node.js 20+, SQLite (по умолчанию) или MySQL/PostgreSQL.
 
@@ -28,23 +78,23 @@ php artisan queue:work --queue=parsing
 composer dev
 ```
 
-Приложение по умолчанию: `http://localhost:8000`.
-
-**Docker / Sail.** Отдельного `docker-compose.yml` в репозитории нет; при необходимости можно поднять стек через [Laravel Sail](https://laravel.com/docs/sail) (`composer require laravel/sail --dev` уже в `require-dev`, далее `php artisan sail:install`).
+Приложение по умолчанию: `http://localhost:8000`. Без Docker очередь по умолчанию — `database` (см. `.env.example`); в Docker — Redis.
 
 ### Учётная запись (сид)
 
-| Поле | Значение по умолчанию | Переопределение |
-|------|----------------------|-----------------|
-| Email | `test@example.com` | `SEED_USER_EMAIL` |
-| Password | `password` | `SEED_USER_PASSWORD` |
+| Поле     | Значение по умолчанию | Переопределение      |
+| -------- | --------------------- | -------------------- |
+| Email    | `test@example.com`    | `SEED_USER_EMAIL`    |
+| Password | `password`            | `SEED_USER_PASSWORD` |
 
 ### Парсинг и очередь
 
 После `POST /api/organization` (или явного `POST /api/organization/parse-run`) создаётся запись в `parse_runs` и в очередь `parsing` ставится `ParseOrganizationJob`. Без воркера job не выполнится:
 
 ```bash
+# локально:
 php artisan queue:work --queue=parsing
+# в Docker воркер уже запущен как сервис queue
 ```
 
 Страховочная переочередь и reaping «зависших» runs:
@@ -59,32 +109,101 @@ php artisan yandex:queue-parsing
 php artisan schedule:work
 ```
 
+В Docker планировщик уже работает как сервис `scheduler`.
+
+---
+
+## Развёртывание на VPS
+
+Цель: публичный HTTPS-прототип на вашем домене (обязательный формат сдачи по ТЗ).
+
+1. **Подготовка сервера.** Установите Docker Engine и Compose plugin. Откройте в файрволе только `80`/`443` (например `ufw allow 80,443/tcp`). Порты MySQL/Redis **не** публикуются наружу.
+2. **DNS.** A-запись домена → публичный IP VPS.
+3. **Код и env.**
+
+```bash
+git clone <REPO_URL> yandex-parser-app
+cd yandex-parser-app
+cp .env.docker.example .env
+# Заполните: APP_KEY, APP_URL=https://YOUR_DOMAIN,
+# SANCTUM_STATEFUL_DOMAINS=YOUR_DOMAIN,
+# DB_PASSWORD, DB_ROOT_PASSWORD, SEED_USER_* при желании
+# SESSION_SECURE_COOKIE=true  (рекомендуется после включения HTTPS)
+```
+
+4. **Старт стека (пока HTTP):**
+
+```bash
+docker compose build
+docker compose up -d
+curl -fsS http://YOUR_DOMAIN/up
+```
+
+5. **Выпуск Let's Encrypt сертификата** (webroot через общий volume `certbot_www`):
+
+```bash
+docker compose --profile certbot run --rm certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d YOUR_DOMAIN \
+  --email YOUR_EMAIL \
+  --agree-tos --no-eff-email
+```
+
+6. **Включение HTTPS в nginx:**
+
+```bash
+cp docker/nginx/conf.d/ssl.conf.example docker/nginx/conf.d/ssl.conf
+# Замените YOUR_DOMAIN в ssl.conf на реальный хост.
+# В app.conf оставьте ACME-location и добавьте редирект 80→443
+# (шаблон комментарием лежит в ssl.conf.example).
+docker compose exec nginx nginx -t
+docker compose exec nginx nginx -s reload
+```
+
+Обновите `.env`: `APP_URL=https://YOUR_DOMAIN`, при необходимости `SESSION_SECURE_COOKIE=true`, затем:
+
+```bash
+docker compose up -d app queue scheduler
+curl -fsS https://YOUR_DOMAIN/up
+```
+
+7. **Автопродление сертификата** — cron на хосте:
+
+```cron
+0 3 * * * cd /path/to/yandex-parser-app && docker compose --profile certbot run --rm certbot renew -q && docker compose exec nginx nginx -s reload
+```
+
+8. **Проверка сдачи.** Логин сидом → вставить ссылку организации Яндекс.Карт → дождаться прогресса парсинга → рейтинг/счётчики и пагинация отзывов по 50.
+
 ---
 
 ## Переменные окружения
 
-Скопируйте `.env.example` → `.env`. Ключевые параметры:
+Скопируйте `.env.example` → `.env` (локально) или `.env.docker.example` → `.env` (Docker / VPS). Ключевые параметры:
 
-| Переменная | Назначение | По умолчанию |
-|------------|------------|--------------|
-| `APP_URL` | URL приложения (Sanctum / SPA) | `http://localhost:8000` |
-| `SANCTUM_STATEFUL_DOMAINS` | Домены cookie-auth | `localhost,...` |
-| `DB_*` | БД (по умолчанию SQLite) | sqlite |
-| `CACHE_STORE` | Кэш листинга отзывов + locks | `database` |
-| `QUEUE_CONNECTION` | Драйвер очереди | `database` |
-| `YANDEX_PARSER_MAX_PAGES` | Макс. страниц `?page=N` (~600 отзывов) | `12` |
-| `YANDEX_PARSER_REQUEST_DELAY_MS` | Базовая пауза перед HTTP-запросом (с джиттером) | `500` |
-| `YANDEX_PARSER_TIMEOUT` | Таймаут HTTP, сек | `20` |
-| `YANDEX_PARSER_USER_AGENT` | User-Agent (опционально) | Chrome-like |
-| `YANDEX_HTTP_PROXY` | Опциональный HTTP(S)-прокси | — |
-| `YANDEX_REVIEWS_CACHE_TTL` | TTL кэша страниц отзывов, сек | `3600` |
-| `YANDEX_REPARSE_INTERVAL_HOURS` | Интервал повторного парсинга Ready/Failed | `24` |
-| `YANDEX_QUEUE_NAME` | Имя очереди воркера | `parsing` |
-| `YANDEX_PARSER_TRIES` | Число попыток job | `3` |
-| `YANDEX_PARSER_JOB_TIMEOUT` | Таймаут одной попытки, сек | `900` |
-| `YANDEX_PARSER_BACKOFF` | Паузы между попытками, сек (CSV) | `60,300,900` |
-| `YANDEX_QUEUE_DISPATCH_SPACING` | Задержка между cron-диспатчами, сек | `10` |
-| `YANDEX_STALE_RUN_MINUTES` | Через сколько минут `processing` считается зависшим | `30` |
+| Переменная                       | Назначение                                          | По умолчанию                  |
+| -------------------------------- | --------------------------------------------------- | ----------------------------- |
+| `APP_URL`                        | URL приложения (Sanctum / SPA)                      | `http://localhost:8000`       |
+| `SANCTUM_STATEFUL_DOMAINS`       | Домены cookie-auth                                  | `localhost,...`               |
+| `TRUSTED_PROXIES`                | IP/CIDR nginx (CSV) или `*`; пусто = не доверять `X-Forwarded-*` | пусто / в Docker приватные сети |
+| `DB_*`                           | БД (локально SQLite; в Docker — MySQL)              | sqlite / mysql                |
+| `CACHE_STORE`                    | Кэш листинга отзывов + locks                        | `database` / в Docker `redis` |
+| `QUEUE_CONNECTION`               | Драйвер очереди                                     | `database` / в Docker `redis` |
+| `DB_ROOT_PASSWORD`               | Root-пароль MySQL-контейнера (только Docker)        | —                             |
+| `HTTP_PORT` / `HTTPS_PORT`       | Проброс портов nginx                                | `80` / `443`                  |
+| `YANDEX_PARSER_MAX_PAGES`        | Макс. страниц `?page=N` (~600 отзывов)              | `12`                          |
+| `YANDEX_PARSER_REQUEST_DELAY_MS` | Базовая пауза перед HTTP-запросом (с джиттером)     | `500`                         |
+| `YANDEX_PARSER_TIMEOUT`          | Таймаут HTTP, сек                                   | `20`                          |
+| `YANDEX_PARSER_USER_AGENT`       | User-Agent (опционально)                            | Chrome-like                   |
+| `YANDEX_HTTP_PROXY`              | Опциональный HTTP(S)-прокси                         | —                             |
+| `YANDEX_REVIEWS_CACHE_TTL`       | TTL кэша страниц отзывов, сек                       | `3600`                        |
+| `YANDEX_REPARSE_INTERVAL_HOURS`  | Интервал повторного парсинга Ready/Failed           | `24`                          |
+| `YANDEX_QUEUE_NAME`              | Имя очереди воркера                                 | `parsing`                     |
+| `YANDEX_PARSER_TRIES`            | Число попыток job                                   | `3`                           |
+| `YANDEX_PARSER_JOB_TIMEOUT`      | Таймаут одной попытки, сек                          | `900`                         |
+| `YANDEX_PARSER_BACKOFF`          | Паузы между попытками, сек (CSV)                    | `60,300,900`                  |
+| `YANDEX_QUEUE_DISPATCH_SPACING`  | Задержка между cron-диспатчами, сек                 | `10`                          |
+| `YANDEX_STALE_RUN_MINUTES`       | Через сколько минут `processing` считается зависшим | `30`                          |
 
 Полный список — в `.env.example`, конфиг парсера — `config/yandex.php`.
 
@@ -131,30 +250,30 @@ SPA (Vue 3 + Pinia + Vue Router) обслуживается одним Blade-ent
 
 ## API (кратко)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| `POST` | `/api/login` | Вход (Sanctum cookie) |
-| `POST` | `/api/logout` | Выход |
-| `GET` | `/api/me` | Текущий пользователь |
-| `GET` | `/api/organization` | Текущая организация |
-| `POST` | `/api/organization` | Сохранить ссылку Яндекс.Карт (+ enqueue parse run) |
-| `GET` | `/api/organization/reviews` | Отзывы, `page` / `per_page` (до 50) |
-| `POST` | `/api/organization/parse-run` | Явно поставить парсинг в очередь (`202`) |
-| `GET` | `/api/organization/parse-run` | Статус / прогресс последнего run (polling) |
+| Метод  | Путь                          | Описание                                           |
+| ------ | ----------------------------- | -------------------------------------------------- |
+| `POST` | `/api/login`                  | Вход (Sanctum cookie)                              |
+| `POST` | `/api/logout`                 | Выход                                              |
+| `GET`  | `/api/me`                     | Текущий пользователь                               |
+| `GET`  | `/api/organization`           | Текущая организация                                |
+| `POST` | `/api/organization`           | Сохранить ссылку Яндекс.Карт (+ enqueue parse run) |
+| `GET`  | `/api/organization/reviews`   | Отзывы, `page` / `per_page` (до 50)                |
+| `POST` | `/api/organization/parse-run` | Явно поставить парсинг в очередь (`202`)           |
+| `GET`  | `/api/organization/parse-run` | Статус / прогресс последнего run (polling)         |
 
 ### Контракт polling (`GET /api/organization/parse-run`)
 
 Ответ — `{"data": {...}}` либо `{"data": null}`, если run ещё не создавался.
 
-| Поле | Смысл |
-|------|--------|
-| `status` | `pending` \| `processing` \| `completed` \| `failed` |
-| `processed_reviews` / `total_reviews` | Счётчики (total может быть `null` до первой страницы) |
-| `processed_pages` | Сколько страниц уже обработано |
-| `progress_percent` | `0..100` или `null`, пока неизвестен знаменатель |
-| `attempt` / `max_attempts` | Текущая попытка job и лимит |
-| `error_code` / `error_message` | Код/текст последней ошибки (если была) |
-| `queued_at` / `started_at` / `finished_at` | ISO-8601 метки жизненного цикла |
+| Поле                                       | Смысл                                                 |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `status`                                   | `pending` \| `processing` \| `completed` \| `failed`  |
+| `processed_reviews` / `total_reviews`      | Счётчики (total может быть `null` до первой страницы) |
+| `processed_pages`                          | Сколько страниц уже обработано                        |
+| `progress_percent`                         | `0..100` или `null`, пока неизвестен знаменатель      |
+| `attempt` / `max_attempts`                 | Текущая попытка job и лимит                           |
+| `error_code` / `error_message`             | Код/текст последней ошибки (если была)                |
+| `queued_at` / `started_at` / `finished_at` | ISO-8601 метки жизненного цикла                       |
 
 `OrganizationStatus` (карточка: `pending` / `parsing` / `ready` / `failed`) и `ParseRunStatus` (попытка) — разные сущности: run отражает конкретный прогон, статус организации — итоговое состояние карточки.
 
@@ -210,11 +329,11 @@ ReviewController → ReviewService (кэшированная пагинация)
 `https://yandex.ru/maps/org/{id}/reviews/?page=N`  
 (тег `state-view` / `config-view`), обход страниц `1..max_pages` (по умолчанию 12).
 
-| Подход | Плюсы | Минусы / риски |
-|--------|-------|----------------|
-| **Embedded JSON + `?page=N` (наш)** | Нет Chromium/Node; не нужен JS-токен `s`; простой деплой; до ~50 отзывов на страницу; короткий HTTP-цикл | Хрупкость к смене путей в JSON / класса скрипта; капча на HTML; лимит выдачи Яндекса (~600) |
-| **Signed `fetchReviews` XHR** | Ближе к «живому» клиенту, потенциально те же данные | Нужен одноразовый `s`-токен из JS; сильнее rate-limit; сложнее и нестабильнее воспроизводить |
-| **Headless-браузер** | Устойчивее к JS-only UI, проще «как пользователь» | Тяжёлый рантайм, медленнее, дороже в ops; капча всё равно возможна |
+| Подход                              | Плюсы                                                                                                    | Минусы / риски                                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Embedded JSON + `?page=N` (наш)** | Нет Chromium/Node; не нужен JS-токен `s`; простой деплой; до ~50 отзывов на страницу; короткий HTTP-цикл | Хрупкость к смене путей в JSON / класса скрипта; капча на HTML; лимит выдачи Яндекса (~600)  |
+| **Signed `fetchReviews` XHR**       | Ближе к «живому» клиенту, потенциально те же данные                                                      | Нужен одноразовый `s`-токен из JS; сильнее rate-limit; сложнее и нестабильнее воспроизводить |
+| **Headless-браузер**                | Устойчивее к JS-only UI, проще «как пользователь»                                                        | Тяжёлый рантайм, медленнее, дороже в ops; капча всё равно возможна                           |
 
 Почему не XHR: токен и антибот вокруг `fetchReviews` делают решение хрупче без выигрыша по объёму (страница уже отдаёт до 50 отзывов).  
 Почему не headless на этом этапе: избыточная инфраструктура для тестового объёма; интерфейс парсера позволяет подменить реализацию позже.
@@ -225,13 +344,13 @@ ReviewController → ReviewService (кэшированная пагинация)
 
 **Модель run / job / прогресс**
 
-| Компонент | Роль |
-|-----------|------|
-| `parse_runs` | Статус попытки (`pending`/`processing`/`completed`/`failed`), счётчики отзывов/страниц, attempt, ошибки |
-| `ParseRunService::queue()` | Dedupe активного run + `ParseOrganizationJob::dispatch` под `Cache::lock` |
-| `ParseOrganizationJob` | `tries` / `backoff` / `timeout`, `WithoutOverlapping`, классификация retryable vs fatal |
-| `YandexReviewsPageParsed` | Событие на каждую страницу → listener пишет прогресс в `parse_runs` |
-| Polling API | `GET /api/organization/parse-run` для SPA |
+| Компонент                  | Роль                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `parse_runs`               | Статус попытки (`pending`/`processing`/`completed`/`failed`), счётчики отзывов/страниц, attempt, ошибки |
+| `ParseRunService::queue()` | Dedupe активного run + `ParseOrganizationJob::dispatch` под `Cache::lock`                               |
+| `ParseOrganizationJob`     | `tries` / `backoff` / `timeout`, `WithoutOverlapping`, классификация retryable vs fatal                 |
+| `YandexReviewsPageParsed`  | Событие на каждую страницу → listener пишет прогресс в `parse_runs`                                     |
+| Polling API                | `GET /api/organization/parse-run` для SPA                                                               |
 
 **Триггеры**
 
@@ -251,13 +370,13 @@ php artisan queue:work --queue=parsing
 
 **Матрица retry**
 
-| `error_code` | Retryable? | Поведение |
-|--------------|------------|-----------|
-| `organization_unavailable` | да | throw → Laravel retry с backoff `60 → 300 → 900` с |
-| `captcha_required` | да | то же (пауза — правильный ответ на soft-ban) |
-| `empty_yandex_response` | да | то же (возможен транзиентный degraded-ответ) |
-| `invalid_layout` | **нет** | `$this->fail()` сразу → `failed_jobs`, run/org `failed`; backoff бесполезен при смене контракта разметки |
-| прочее / timeout | — | по исчерпании `tries` → `failed()` терминально |
+| `error_code`               | Retryable? | Поведение                                                                                                |
+| -------------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
+| `organization_unavailable` | да         | throw → Laravel retry с backoff `60 → 300 → 900` с                                                       |
+| `captcha_required`         | да         | то же (пауза — правильный ответ на soft-ban)                                                             |
+| `empty_yandex_response`    | да         | то же (возможен транзиентный degraded-ответ)                                                             |
+| `invalid_layout`           | **нет**    | `$this->fail()` сразу → `failed_jobs`, run/org `failed`; backoff бесполезен при смене контракта разметки |
+| прочее / timeout           | —          | по исчерпании `tries` → `failed()` терминально                                                           |
 
 Между попытками non-terminal failure: run снова `pending` (ждёт retry в очереди), организация остаётся `parsing` и не мигает в `failed`.
 
@@ -303,7 +422,6 @@ php artisan queue:work --queue=parsing
 - Ротация прокси/UA и circuit-breaker при серии captcha.
 - API истории снимков (`organization_snapshots`) для сравнения «было → стало» в интерфейсе.
 - Синхронизация номера страницы отзывов с query-параметром URL.
-- Docker Compose «из коробки» для сдачи одной командой.
 - E2E против живой карточки Яндекса в CI (сейчас — HTML-фикстуры, без сети).
 
 ---

@@ -114,11 +114,15 @@ class YandexMapsIntegrationClientTest extends TestCase
 
     public function test_resolve_organization_id_follows_short_link_location(): void
     {
-        Http::fake([
-            'https://yandex.ru/maps/-/shortcode' => Http::response('', 302, [
-                'Location' => 'https://yandex.ru/maps/org/test-cafe/9876543210/',
-            ]),
-        ]);
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), '/maps/-/shortcode')) {
+                return Http::response('', 302, [
+                    'Location' => 'https://yandex.ru/maps/org/test-cafe/9876543210/',
+                ]);
+            }
+
+            return Http::response('<html>org</html>', 200);
+        });
 
         $id = $this->client->resolveOrganizationId('https://yandex.ru/maps/-/shortcode');
 

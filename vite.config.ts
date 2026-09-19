@@ -44,6 +44,13 @@ export default defineConfig({
         semi: true,
         singleAttributePerLine: false,
         htmlWhitespaceSensitivity: 'css',
-        ignorePatterns: ['.github/**', 'composer.json'],
+        ignorePatterns: [
+            '.github/**',
+            'composer.json',
+            'tests/Fixtures/**',
+            'docker/**',
+            'Dockerfile',
+            'docker-compose.yml',
+        ],
     },
 });

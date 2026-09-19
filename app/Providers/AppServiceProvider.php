@@ -15,6 +15,7 @@ use App\Repositories\UserRepository;
 use App\Services\Parsers\Contracts\YandexParserInterface;
 use App\Services\Parsers\YandexMapParserService;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -41,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureTrustedProxies();
     }
 
     /**
@@ -63,5 +65,19 @@ class AppServiceProvider extends ServiceProvider
                 ->uncompromised()
             : null,
         );
+    }
+
+    /**
+     * Trust X-Forwarded-* only from proxies listed in TRUSTED_PROXIES.d
+     */
+    protected function configureTrustedProxies(): void
+    {
+        $proxies = config('app.trusted_proxies');
+
+        if (!is_string($proxies) || empty($proxies)) {
+            return;
+        }
+
+        TrustProxies::at($proxies);
     }
 }

@@ -16,7 +16,7 @@ return new class extends Migration
         Schema::create('organizations', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
-            $table->string('yandex_maps_url', 2048)->unique();
+            $table->string('yandex_maps_url', 512)->unique();
             $table->decimal('rating', 4, 2)->nullable();
             $table->unsignedInteger('total_ratings')->default(0);
             $table->unsignedInteger('total_reviews')->default(0);

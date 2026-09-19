@@ -20,7 +20,7 @@ class StoreOrganizationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'yandex_maps_url' => ['required', 'string', 'max:2048', new YandexMapsOrganizationUrlRule],
+            'yandex_maps_url' => ['required', 'string', 'max:512', new YandexMapsOrganizationUrlRule],
         ];
     }
 

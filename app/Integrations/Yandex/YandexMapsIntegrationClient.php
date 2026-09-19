@@ -184,7 +184,7 @@ final class YandexMapsIntegrationClient
 
         $location = $response->header('Location');
 
-        if (is_string($location) && !empty($location)) {
+        if (!empty($location)) {
             return $this->absolutizeUrl($location, $requestUrl);
         }
 

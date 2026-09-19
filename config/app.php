@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted Proxies
+    |--------------------------------------------------------------------------
+    |
+    | Comma-separated IPs / CIDRs that may set X-Forwarded-* headers (nginx,
+    | load balancer). Empty = do not trust forwarded headers (typical for
+    | `php artisan serve` / Herd). Use `*` only when php-fpm is not exposed
+    | directly to the internet.
+    |
+    */
+
+    'trusted_proxies' => env('TRUSTED_PROXIES', ''),
+
 ];

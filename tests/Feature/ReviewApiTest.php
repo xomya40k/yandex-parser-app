@@ -9,6 +9,7 @@ use App\Models\Review;
 use App\Models\User;
 use App\Repositories\Interfaces\ReviewRepositoryInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -129,7 +130,7 @@ class ReviewApiTest extends TestCase
                     $this->assertSame(50, $perPage);
                     $this->assertSame(1, $page);
 
-                    return new \Illuminate\Pagination\LengthAwarePaginator(
+                    return new LengthAwarePaginator(
                         $reviews,
                         $reviews->count(),
                         $perPage,
