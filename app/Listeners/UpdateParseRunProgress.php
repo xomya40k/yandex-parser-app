@@ -16,7 +16,7 @@ final class UpdateParseRunProgress
 
     public function handle(YandexReviewsPageParsed $event): void
     {
-        if ($event->parseRunId === null) {
+        if (is_null($event->parseRunId)) {
             return;
         }
 

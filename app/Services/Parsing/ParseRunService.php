@@ -31,7 +31,7 @@ class ParseRunService
         return $lock->block(5, function () use ($dto): ParseRunDTO {
             $active = $this->parseRunRepository->findActiveForOrganization($dto->organizationId);
 
-            if ($active !== null) {
+            if (!is_null($active)) {
                 return new ParseRunDTO($active);
             }
 
@@ -59,7 +59,7 @@ class ParseRunService
     {
         $parseRun = $this->parseRunRepository->findLatestForOrganization($dto->organizationId);
 
-        return $parseRun === null ? null : new ParseRunDTO($parseRun);
+        return is_null($parseRun) ? null : new ParseRunDTO($parseRun);
     }
 
     /**
@@ -129,7 +129,7 @@ class ParseRunService
     {
         $parseRun = $this->parseRunRepository->findById($dto->parseRunId);
 
-        if ($parseRun === null) {
+        if (is_null($parseRun)) {
             return;
         }
 
@@ -143,7 +143,7 @@ class ParseRunService
 
             $organization = $this->organizationRepository->findById($parseRun->organization_id);
 
-            if ($organization !== null) {
+            if (!is_null($organization)) {
                 $this->organizationRepository->update($organization, [
                     'status' => OrganizationStatus::Failed,
                 ]);

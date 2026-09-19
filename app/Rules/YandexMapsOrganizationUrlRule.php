@@ -11,19 +11,19 @@ class YandexMapsOrganizationUrlRule implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if (! is_string($value) || empty($value)) {
+        if (!is_string($value) || empty($value)) {
             $fail('The :attribute must be a valid Yandex Maps organization card link.');
 
             return;
         }
 
-        if (! filter_var($value, FILTER_VALIDATE_URL)) {
+        if (!filter_var($value, FILTER_VALIDATE_URL)) {
             $fail('The :attribute must be a valid URL.');
 
             return;
         }
 
-        if (! preg_match(
+        if (!preg_match(
             '/^https?:\/\/(?:www\.)?(?:maps\.)?yandex\.(?:ru|com|by|kz|ua)\/(?:maps\/)?(?:org\/|-\/)/i',
             $value,
         )) {

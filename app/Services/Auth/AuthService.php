@@ -19,7 +19,7 @@ class AuthService
 
     public function login(LoginDTO $dto): UserDTO
     {
-        if (! Auth::guard('web')->attempt(['email' => $dto->email, 'password' => $dto->password])) {
+        if (!Auth::guard('web')->attempt(['email' => $dto->email, 'password' => $dto->password])) {
             throw ValidationException::withMessages([
                 'email' => [__('These credentials do not match our records.')],
             ]);

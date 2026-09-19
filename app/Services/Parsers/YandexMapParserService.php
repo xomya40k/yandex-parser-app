@@ -196,7 +196,7 @@ final class YandexMapParserService implements YandexParserInterface
             ?? $review['createdTime']
             ?? null;
 
-        if (! is_string($raw) || empty($raw)) {
+        if (!is_string($raw) || empty($raw)) {
             throw new InvalidLayoutException(
                 "Yandex review at index [{$index}] is missing a review date.",
             );
